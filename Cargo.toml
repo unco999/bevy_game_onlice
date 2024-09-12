@@ -1,0 +1,9 @@
+[package]
+name = "bevy_game_onlice"
+version = "0.1.0"
+edition = "2021"
+publish = ["crates-io"]
+
+[dependencies]
+bevy = "0.14.2"
+bevy_mask_system = "0.1.0"
