@@ -5,5 +5,22 @@ edition = "2021"
 publish = ["crates-io"]
 
 [dependencies]
-bevy = "0.14.2"
-bevy_mask_system = "0.1.0"
+bevy = { workspace = true }  # 从工作空间继承 bevy 依赖
+bevy_mask_system = { workspace = true } 
+mask_system_lib = { workspace = true } 
+bevy_entity_state = { workspace = true }
+bevy_base = { workspace = true }
+bevy_debug = {workspace = true}
+bevy-inspector-egui = "0.25.2"
+[workspace]
+members = [ "bevy_debug",
+    "bevy_entity_state",  # 子目录的库
+]
+
+[workspace.dependencies]
+bevy = "0.14.2"  # 统一管理 Bevy 依赖
+bevy_mask_system = "0.1.2"
+mask_system_lib = "0.1.0"
+bevy_entity_state = { path = "bevy_entity_state"}
+bevy_base = { path = "bevy_base"}
+bevy_debug = { path = "bevy_debug"}
