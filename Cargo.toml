@@ -20,7 +20,7 @@ members = [ "bevy_debug",
 [workspace.dependencies]
 bevy = "0.14.2"  # 统一管理 Bevy 依赖
 bevy_mask_system = "0.1.2"
-mask_system_lib = "0.1.0"
+mask_system_lib = "0.1.1"
 bevy_entity_state = { path = "bevy_entity_state"}
 bevy_base = { path = "bevy_base"}
 bevy_debug = { path = "bevy_debug"}

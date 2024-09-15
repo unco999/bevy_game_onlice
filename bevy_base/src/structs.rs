@@ -17,10 +17,11 @@ pub mod const_link_type{
 
 pub mod const_time{
     pub const timer:usize = 2;
+    pub const state_timer:usize = 4;
 }
 
 pub mod comp{
-    use bevy::prelude::{Component, Entity};
+    use bevy::{prelude::{Component, Entity}, reflect::TypePath};
 
 
     /**
@@ -37,7 +38,7 @@ pub mod comp{
     }
 
 
-    #[derive(Component)]
+    #[derive(Component,TypePath)]
     pub struct TimePass<const const_time:usize>{
         pub start_time:f32,
         pub max_time:f32,

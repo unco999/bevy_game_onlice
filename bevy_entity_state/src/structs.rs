@@ -2,6 +2,7 @@ pub mod const_base_state{
     pub const ENTRY:usize = 2;
     pub const RUN:usize = 4;
     pub const EXIT:usize = 8;
+    pub const END:usize = 16;
 }
 
 pub mod const_creature_state{

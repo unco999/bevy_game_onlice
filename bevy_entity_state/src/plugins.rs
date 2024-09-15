@@ -25,15 +25,33 @@ impl Plugin for BevyEntityStatePlugin{
     fn build(&self, app: &mut bevy::prelude::App) {
         app
             .add_systems(Startup, test.in_set(BevyEntityStateSysSet::Init).after(BevyEntityStateSysSet::Run))
-            .add_systems(Update,
-                         F::<op!(SubStateCheckTransition + TimePassOverChange),
-                         StateProcessing,Content::<{const_base::creature},0,0,2>>::mask().in_set(BevyEntityStateSysSet::Run))
-                         .add_systems(Update,F::<op!(SubStateCheckTransition),
-                         StateProcessing,Content::<{const_base::creature},0,0,{const_creature_state::run}>>::sign().1.clone().in_set(BevyEntityStateSysSet::Run))
-                         .add_systems(Update,F::<op!(SubStateCheckTransition),
-                        StateProcessing,Content::<{const_base::creature},0,0,{const_creature_state::run}>>::sign().2.clone().in_set(BevyEntityStateSysSet::Run))
-                        .add_systems(Update,F::<op!(MainStateCheckTransition),
-                        StateProcessing,Content::<{const_base::creature},0,0,{const_creature_state::run}>>::sign().in_set(BevyEntityStateSysSet::Run));
+            .add_systems(Update,F::<op!(MainTimePassTick ),TimePassTick,Content::<{const_base::creature},0,0,0,{const_creature_state::run},0,0>>::sign())
+            .add_systems(Update,F::<op!(MainTimePassTick ),TimePassTick,Content::<{const_base::creature},0,0,0,{const_creature_state::spawn},0,0>>::sign())
+            .add_systems(Update,F::<op!(SubStateTimePassTick),TimePassTick,Content::<{const_base::creature},0,0,{const_base_state::ENTRY},0,0,0>>::sign())
+            .add_systems(Update,F::<op!(SubStateTimePassTick),TimePassTick,Content::<{const_base::creature},0,0,{const_base_state::EXIT},0,0,0>>::sign())
+
+            //单独的run状态改变
+            .add_systems(Update,F::<op!(SubRun),StateChange,Content::<{const_base::creature},0,0,0,0,0,0>>::sign())
+
+            //子状态转变使用的函数
+            .add_systems(Update, F::<op!(DefualtSubStateChange),StateChange,Content::<{const_base::creature},0,0,{const_base_state::ENTRY},{const_base_state::RUN},0,0>>::sign())
+            .add_systems(Update, F::<op!(DefualtSubStateChange),StateChange,Content::<{const_base::creature},0,0,{const_base_state::EXIT},{const_base_state::END},0,0>>::sign())
+
+
+            //主转台转变使用的函数
+            .add_systems(Update, F::<op!(DefualtMainStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::run},{const_creature_state::idle},0,0>>::sign())
+            .add_systems(Update, F::<op!(DefualtMainStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::spawn},{const_creature_state::idle},0,0>>::sign())
+        
+            //指定转换函数
+            .add_systems(Update, F::<op!(MainAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::idle},{const_creature_state::run},0,0>>::sign())
+
+            //指定子状态受到指令转变
+            .add_systems(Update, F::<op!(DefualtSubAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_base_state::RUN},{const_base_state::EXIT},0,0>>::sign())
+
+            //子状态转变主状态
+            .add_systems(Update, F::<op!(SubChangeMainState),StateChange,Content::<{const_base::creature},0,0,{const_base_state::END},{const_creature_state::run},0,0>>::sign())
+
+        ;
     }
 }
 
@@ -49,7 +67,14 @@ fn test(
 ){
     let main_ent = 
             cmd.spawn_empty()
-            .insert(MainState::<{const_creature_state::idle}>)
+            .insert(MainState::<{const_creature_state::spawn}>)
+            .insert(TimePass::<{ const_time::state_timer  }>{
+                start_time: 0.0,
+                max_time: 0.25,
+                is_over: false,
+                is_stop: false,
+                elapsed_time: 0.0,
+            })
             .id();
     let sub_ent = cmd.spawn_empty()
             .insert(SubState::<{const_base_state::ENTRY}>)
@@ -67,9 +92,9 @@ fn test(
         .insert(Marker::<{const_base::creature}>);
     cmd.entity(sub_ent)
         .insert(c2mlink)
-        .insert(TimePass::<{ const_time::timer  }>{
+        .insert(TimePass::<{ const_time::state_timer  }>{
             start_time: 0.0,
-            max_time: 3.0,
+            max_time: 0.25,
             is_over: false,
             is_stop: false,
             elapsed_time: 0.0,
@@ -79,161 +104,246 @@ fn test(
 
 
 #[derive(MaskSys)]
-struct StateProcessing; //子状态处理
+struct TimePassTick; //子状态处理
 
 
 
-type TimePassOverChange = Tag_1_2;
-type SubStateCheckTransition = Tag_2_4;
-type MainStateCheckTransition = Tag_3_8;
+type MainTimePassTick = Tag_1_2;
+type SubStateTimePassTick = Tag_2_4;
 
-impl<Content:MaskSystemContent + 'static> MaskSystem<MainStateCheckTransition,Content> for StateProcessing 
+impl<Content:MaskSystemContent + 'static> MaskSystem<MainTimePassTick,Content> for TimePassTick
     where 
-    [(); {Content::market}]:,
-    [(); {Content::custom_val}]:
-{
-    const _marker:usize = 8;
-
-    type Output = (
-        fn(
-            Commands,
-            Query<(Entity,&Link<{const_link_type::sub_state}>),(With<MainState<{const_creature_state::run}>>,With<Marker<{Content::market}>>,Or<(With<DefualtStateTransition>,With<AppointStateTransition::<{Content::custom_val}>>)>)>
-        ),
-        fn(
-            Commands,
-            Query<(Entity,&Link::<{const_link_type::sub_state}>),(With<Marker<{Content::market}>>,With<MainState::<{const_creature_state::idle}>>,Added<AppointStateTransition::<{Content::custom_val}>>)>
-        ),
-    );
-
-    fn export() -> Self::Output {
-        (
-            |
-                mut cmd:Commands,
-                mut query:Query<(Entity,&Link<{const_link_type::sub_state}>),(With<MainState<{const_creature_state::run}>>,With<Marker<{Content::market}>>,Or<(With<DefualtStateTransition>,With<AppointStateTransition::<{Content::custom_val}>>)>)>
-            |{
-                for (main_ent,link) in &mut query{
-                    let sub_ent = link.link;
-                    cmd.entity(main_ent).remove::<MainState::<{Content::custom_val}>>();
-                    cmd.entity(main_ent).insert(MainState::<{const_creature_state::idle}>);
-                    cmd.entity(main_ent).remove::<AppointStateTransition::<{Content::custom_val}>>();
-                    cmd.entity(main_ent).insert(SubState::<{const_base_state::ENTRY}>);
-                    println!("main state -> idle")
-                };
-            },
-            |
-            mut cmd:Commands,
-            mut query:Query<(Entity,&Link::<{const_link_type::sub_state}>),(With<Marker<{Content::market}>>,With<MainState::<{const_creature_state::idle}>>,Added<AppointStateTransition::<{Content::custom_val}>>)>
-            |{
-            for (main_ent,link) in &mut query{
-                cmd.entity(main_ent).remove::<MainState::<{const_creature_state::idle}>>();
-                let sub_state_ent = link.link;
-                cmd.entity(sub_state_ent).insert(MainState::<{Content::custom_val}>);
-                cmd.entity(main_ent).insert(SubState::<{const_base_state::ENTRY}>);
-                cmd.entity(main_ent).remove::<AppointStateTransition::<{Content::custom_val}>>();
-                println!("main state -> run")
-            };
-        },
-        )
-    }
-}
-
-impl<Content:MaskSystemContent + 'static> MaskSystem<SubStateCheckTransition,Content> for StateProcessing 
-    where 
-    [(); {Content::custom_val}]:,
-    [(); {Content::market}]:
-{
-    const _marker:usize = 4;
-
-    type Output = (
-        fn(
-            Commands,
-            Query<(Entity),(With<SubState<{const_base_state::ENTRY}>>,With<Marker<{Content::market}>>,With<DefualtStateTransition>)>
-        ),
-        fn(
-            Commands,
-            Query<(Entity,&AppointStateTransition::<{Content::custom_val}>,&Link<{const_link_type::state}>),(With<Link<{const_link_type::state}>>,With<SubState<{const_base_state::RUN}>>,With<Marker<{Content::market}>>,With<AppointStateTransition::<{Content::custom_val}>>)>
-        ),
-        fn(
-            Commands,
-            Query<(Entity,&AppointStateTransition::<{Content::custom_val}>,&mut TimePass<{const_time::timer}>,&Link<{const_link_type::state}>),(With<Link<{const_link_type::state}>>,With<SubState<{const_base_state::EXIT}>>,With<Marker<{Content::market}>>,With<AppointStateTransition::<{Content::custom_val}>>)>
-        )
-    );
-
-    fn export() -> Self::Output {
-        (
-        |
-            mut cmd:Commands,
-            mut query:Query<(Entity),(With<SubState<{const_base_state::ENTRY}>>,With<Marker<{Content::market}>>,With<DefualtStateTransition>)>
-        |{
-            for (ent) in &mut query{
-                cmd.entity(ent).remove::<SubState<{const_base_state::ENTRY}>>();
-                cmd.entity(ent).insert(SubState::<{const_base_state::RUN}>);
-                cmd.entity(ent).remove::<DefualtStateTransition>();
-                println!("entry -> run");
-            }
-        },
-        |
-            mut cmd:Commands,
-            mut query:Query<(Entity,&AppointStateTransition::<{Content::custom_val}>,&Link<{const_link_type::state}>),(With<Link<{const_link_type::state}>>,With<SubState<{const_base_state::RUN}>>,With<Marker<{Content::market}>>,With<AppointStateTransition::<{Content::custom_val}>>)>
-        |{
-            for (ent,appoint,link) in &mut query{
-                cmd.entity(ent).remove::<SubState<{const_base_state::RUN}>>();
-                cmd.entity(ent).insert(SubState::<{const_base_state::EXIT}>);
-                println!("run -> exit");
-            }
-        },
-        |
-            mut cmd:Commands,
-            mut query:Query<(Entity,&AppointStateTransition::<{Content::custom_val}>,&mut TimePass<{const_time::timer}>,&Link<{const_link_type::state}>),(With<Link<{const_link_type::state}>>,With<SubState<{const_base_state::EXIT}>>,With<Marker<{Content::market}>>,With<AppointStateTransition::<{Content::custom_val}>>)>
-        |{
-            for (ent,appoint,mut time_pass,link) in &mut query{
-                cmd.entity(ent).remove::<SubState<{const_base_state::EXIT}>>();
-                let main_state_ent = link.link;
-                cmd.entity(ent).remove::<DefualtStateTransition>();
-                cmd.entity(ent).remove::<AppointStateTransition::<{Content::custom_val}>>();
-                cmd.entity(main_state_ent).insert(AppointStateTransition::<{Content::custom_val}>);
-                time_pass.reset();
-                println!("exit -> over");
-            }
-        }
-        )
-    }
-}
-
-impl<Content:MaskSystemContent + 'static> MaskSystem<TimePassOverChange,Content> for StateProcessing
-    where 
-    [(); {Content::custom_val}]:,
-    [(); {Content::market}]:
+    [(); {Content::marker}]:,
+    [(); {Content::tag_2_c}]:,
 {
     const _marker:usize = 2;
 
     type Output = 
-        fn(
-            Res<Time>,
-            Commands,
-            Query<(Entity,&mut TimePass<{const_time::timer}>),(Without<SubState<{const_base_state::EXIT}>>,Without<SubState<{const_base_state::RUN}>>,Without<DefualtStateTransition>,With<Marker<{Content::market}>>)>
+        (
+            fn(Commands,Res<Time>,Query<(Entity,&mut TimePass<{const_time::state_timer}>),(With<Marker<{Content::marker}>>,With<MainState<{Content::tag_2_c}>>)>)
         )
     ;
 
     fn export(
     ) -> Self::Output {
-    
-        |
-            time:Res<Time>,
-            mut cmd:Commands,
-            mut query:Query<(Entity,&mut TimePass<{const_time::timer}>),(Without<SubState<{const_base_state::EXIT}>>,Without<SubState<{const_base_state::RUN}>>,Without<DefualtStateTransition>,With<Marker<{Content::market}>>)>
-        |{
-            for (ent,mut time_pass) in &mut query{
-                if(time_pass.is_over){
-                    cmd.entity(ent).insert(DefualtStateTransition);
-                    println!("sub state over");
-                    continue;
+        (
+            |mut cmd:Commands,mut time:Res<Time>,mut query:Query<(Entity,&mut TimePass<{const_time::state_timer}>),(With<Marker<{Content::marker}>>,With<MainState<{Content::tag_2_c}>>)>|{
+                for (ent,mut time_pass) in &mut query{
+                    if(time_pass.is_over){
+                        cmd.entity(ent).insert(DefualtStateTransition);
+                        continue;
+                    }
+                    time_pass.tick(time.delta_seconds());
                 }
-                if(time_pass.is_stop){
-                    continue;
-                }
-                time_pass.tick(time.delta_seconds());
             }
-        }
+        )
+    }
+}
+
+impl<Content:MaskSystemContent + 'static> MaskSystem<SubStateTimePassTick,Content> for TimePassTick
+    where 
+    [(); {Content::marker}]:,
+    [(); {Content::tag_1_c}]:,
+{
+    const _marker:usize = 4;
+
+    type Output = 
+        (
+            fn(Commands,Res<Time>,Query<(Entity,&mut TimePass<{const_time::state_timer}>),(With<Marker<{Content::marker}>>,With<SubState<{Content::tag_1_c}>>)>)
+        )
+    ;
+
+    fn export(
+    ) -> Self::Output {
+        (
+            |mut cmd:Commands,mut time:Res<Time>,mut query:Query<(Entity,&mut TimePass<{const_time::state_timer}>),(With<Marker<{Content::marker}>>,With<SubState<{Content::tag_1_c}>>)>|{
+                for (ent,mut time_pass) in &mut query{
+                    if(time_pass.is_over){
+                        cmd.entity(ent).insert(DefualtStateTransition);
+                        continue;
+                    }
+                    time_pass.tick(time.delta_seconds());
+                }
+            }
+        )
+    }
+}
+
+#[derive(MaskSys)]
+struct StateChange;
+
+type DefualtSubStateChange = Tag_1_2;
+type DefualtMainStateChange = Tag_2_4;
+type MainAppointStateChange = Tag_3_8;
+type DefualtSubAppointStateChange = Tag_4_16;
+type SubChangeMainState = Tag_5_32;
+type SubRun = Tag_6_64;
+
+impl<Content:MaskSystemContent + 'static> MaskSystem<DefualtSubStateChange,Content> for StateChange
+    where 
+    [(); {Content::marker}]:,
+    [(); {Content::tag_1_c}]:,
+    [(); {Content::tag_2_c}]:
+{
+    const _marker:usize = 2;
+
+    type Output = 
+        (
+            fn(Commands,Query<(Entity,&mut TimePass<{const_time::state_timer}>),(With<Marker<{Content::marker}>>,With<SubState<{Content::tag_1_c}>>,With<DefualtStateTransition>)>),
+        )
+    ;
+
+    fn export() -> Self::Output {
+        (
+            |mut cmd:Commands,mut query:Query<(Entity,&mut TimePass<{const_time::state_timer}>),(With<Marker<{Content::marker}>>,With<SubState<{Content::tag_1_c}>>,With<DefualtStateTransition>)>|{
+                for (ent,mut time_pass) in &mut query{
+                    cmd.entity(ent).remove::<SubState<{Content::tag_1_c}>>();
+                    cmd.entity(ent).insert(SubState::<{Content::tag_2_c}>);
+                    time_pass.reset();
+                }
+            },
+        )
+    }
+}
+
+impl<Content:MaskSystemContent + 'static> MaskSystem<DefualtMainStateChange,Content> for StateChange
+    where 
+    [(); {Content::marker}]:,
+    [(); {Content::tag_1_c}]:,
+    [(); {Content::tag_2_c}]:
+{
+    const _marker:usize = 4;
+
+    type Output = 
+        (
+            fn(Commands,Query<(Entity,&mut TimePass<{const_time::state_timer}>),(With<Marker<{Content::marker}>>,With<MainState<{Content::tag_1_c}>>,With<DefualtStateTransition>)>),
+        )
+    ;
+
+    fn export() -> Self::Output {
+        (
+            |mut cmd:Commands,mut query:Query<(Entity,&mut TimePass<{const_time::state_timer}>),(With<Marker<{Content::marker}>>,With<MainState<{Content::tag_1_c}>>,With<DefualtStateTransition>)>|{
+                for (ent,mut time_pass) in &mut query{
+                    cmd.entity(ent).remove::<DefualtStateTransition>();
+                    cmd.entity(ent).remove::<MainState<{Content::tag_1_c}>>();
+                    cmd.entity(ent).insert(MainState::<{Content::tag_2_c}>);
+                    time_pass.reset();
+                    println!("主状态转变了");
+                }
+            },
+        )
+    }
+}
+
+impl<Content:MaskSystemContent + 'static> MaskSystem<MainAppointStateChange,Content> for StateChange
+    where 
+    [(); {Content::marker}]:,
+    [(); {Content::tag_1_c}]:,
+    [(); {Content::tag_2_c}]:
+{
+    const _marker:usize = 8;
+
+    type Output = 
+        (
+            fn(Commands,Query<(Entity,&mut TimePass<{const_time::state_timer}>),(With<Marker<{Content::marker}>>,With<MainState<{Content::tag_1_c}>>,With<AppointStateTransition<{Content::tag_2_c}>>)>),
+        )
+    ;
+
+    fn export() -> Self::Output {
+        (
+            |mut cmd:Commands,mut query:Query<(Entity,&mut TimePass<{const_time::state_timer}>),(With<Marker<{Content::marker}>>,With<MainState<{Content::tag_1_c}>>,With<AppointStateTransition<{Content::tag_2_c}>>)>|{
+                for (ent,mut time_pass) in &mut query{
+                    cmd.entity(ent).remove::<AppointStateTransition<{Content::tag_2_c}>>();
+                    cmd.entity(ent).remove::<MainState<{Content::tag_1_c}>>();
+                    cmd.entity(ent).insert(MainState::<{Content::tag_2_c}>);
+                    time_pass.reset();
+                    println!("main当前转换为run状态");
+                }
+            },
+        )
+    }
+}
+
+
+impl<Content:MaskSystemContent + 'static> MaskSystem<DefualtSubAppointStateChange,Content> for StateChange
+    where 
+    [(); {Content::marker}]:,
+    [(); {Content::tag_1_c}]:,
+    [(); {Content::tag_2_c}]:
+{
+    const _marker:usize = 16;
+
+    type Output = 
+        (
+            fn(Commands,Query<(Entity,&mut TimePass<{const_time::state_timer}>),(With<Marker<{Content::marker}>>,With<SubState<{Content::tag_1_c}>>,Added<AppointStateTransition<{Content::tag_2_c}>>)>),
+        )
+    ;
+
+    fn export() -> Self::Output {
+        (
+            |mut cmd:Commands,mut query:Query<(Entity,&mut TimePass<{const_time::state_timer}>),(With<Marker<{Content::marker}>>,With<SubState<{Content::tag_1_c}>>,Added<AppointStateTransition<{Content::tag_2_c}>>)>|{
+                for (ent,mut time_pass) in &mut query{
+                    cmd.entity(ent).remove::<SubState<{Content::tag_1_c}>>();
+                    cmd.entity(ent).insert(SubState::<{Content::tag_2_c}>);
+                    time_pass.reset();
+                }
+            },
+        )
+    }
+}
+
+impl<Content:MaskSystemContent + 'static> MaskSystem<SubChangeMainState,Content> for StateChange
+    where 
+    [(); {Content::marker}]:,
+    [(); {Content::tag_1_c}]:,
+    [(); {Content::tag_2_c}]:
+{
+    const _marker:usize = 32;
+
+    type Output = 
+        (
+            fn(Commands,Query<(Entity,&Link<{const_link_type::state}>,&mut TimePass<{const_time::state_timer}>),(With<Marker<{Content::marker}>>,With<SubState<{Content::tag_1_c}>>,With<AppointStateTransition<{Content::tag_2_c}>>)>),
+        )
+    ;
+
+    fn export() -> Self::Output {
+        (
+            |mut cmd:Commands,mut query:Query<(Entity,&Link<{const_link_type::state}>,&mut TimePass<{const_time::state_timer}>),(With<Marker<{Content::marker}>>,With<SubState<{Content::tag_1_c}>>,With<AppointStateTransition<{Content::tag_2_c}>>)>|{
+                for (ent,mut link,mut time_pass) in &mut query{
+                    cmd.entity(ent).remove::<AppointStateTransition::<{Content::tag_2_c}>>();
+                    let main_state_ent = link.link;
+                    cmd.entity(main_state_ent).insert(AppointStateTransition::<{Content::tag_2_c}>);
+                    cmd.entity(ent).remove::<SubState::<{Content::tag_1_c}>>();
+                    cmd.entity(ent).insert(SubState::<{const_base_state::ENTRY}>);
+                    time_pass.reset();
+                    println!("添加了子状态转变到主状态");
+                }
+            },
+        )
+    }
+}
+
+impl<Content:MaskSystemContent + 'static> MaskSystem<SubRun,Content> for StateChange
+    where 
+    [(); {Content::marker}]:,
+    [(); {Content::tag_1_c}]:,
+    [(); {Content::tag_2_c}]:
+{
+    const _marker:usize = 64;
+
+    type Output = 
+        (
+            fn(Commands,Query<(Entity),(With<Marker<{Content::marker}>>,Added<SubState<{const_base_state::RUN}>>)>),
+        )
+    ;
+
+    fn export() -> Self::Output {
+        (
+            |mut cmd:Commands,mut query:Query<(Entity),(With<Marker<{Content::marker}>>,Added<SubState<{const_base_state::RUN}>>)>|{
+                for (ent) in &mut query{
+                    cmd.entity(ent).remove::<DefualtStateTransition>();
+                }
+            },
+        )
     }
 }
