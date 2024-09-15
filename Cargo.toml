@@ -11,16 +11,21 @@ mask_system_lib = { workspace = true }
 bevy_entity_state = { workspace = true }
 bevy_base = { workspace = true }
 bevy_debug = {workspace = true}
+bevy_blendy_cameras = {workspace = true}
 bevy-inspector-egui = "0.25.2"
-[workspace]
-members = [ "bevy_debug",
-    "bevy_entity_state",  # 子目录的库
-]
-
+bevy_animation = {workspace = true}
+bevy_config = {workspace = true}
+bevy_common_assets = {workspace = true}
+serde = {workspace = true}
 [workspace.dependencies]
+bevy_blendy_cameras = "0.4.0"
 bevy = "0.14.2"  # 统一管理 Bevy 依赖
 bevy_mask_system = "0.1.2"
 mask_system_lib = "0.1.1"
 bevy_entity_state = { path = "bevy_entity_state"}
 bevy_base = { path = "bevy_base"}
 bevy_debug = { path = "bevy_debug"}
+bevy_animation = { path = "bevy_animation"}
+bevy_config = {path = "bevy_config"}
+bevy_common_assets = { version = "0.11", features = ["ron"] }
+serde = "1.0.208"

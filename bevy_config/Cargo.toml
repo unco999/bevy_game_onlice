@@ -1,0 +1,10 @@
+[package]
+name = "bevy_config"
+version = "0.1.0"
+edition = "2021"
+publish = ["crates-io"]
+
+[dependencies]
+bevy = { workspace = true }  # 引用根目录中 Bevy 的依赖
+bevy_common_assets = {workspace = true}
+serde = {workspace=true}
