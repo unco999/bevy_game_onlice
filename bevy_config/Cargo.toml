@@ -8,3 +8,4 @@ publish = ["crates-io"]
 bevy = { workspace = true }  # 引用根目录中 Bevy 的依赖
 bevy_common_assets = {workspace = true}
 serde = {workspace=true}
+bevy_base = {workspace = true}

@@ -1,3 +1,6 @@
+use bevy::prelude::States;
+
+
 pub mod const_base{
     pub const any:usize = 0;
     pub const creature:usize = 2;
@@ -13,6 +16,7 @@ pub mod const_bool{
 pub mod const_link_type{
     pub const state:usize = 2;
     pub const sub_state:usize = 4;
+    pub const animation:usize = 8;
 }
 
 pub mod const_time{
@@ -30,6 +34,9 @@ pub mod comp{
      */
     #[derive(Component)]
     pub struct Marker<const const_base:usize>;
+
+    #[derive(Component)]
+    pub struct Name(pub String);
 
     #[derive(Component)]
     pub struct Link<const const_link_type:usize>{
@@ -73,4 +80,17 @@ pub mod comp{
             self.is_stop = false;
         }
     }
+}
+
+
+#[derive(States, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum AppState{ 
+    #[default]
+    Init,
+    ConfigProcessing, //配置读取阶段
+    ConfigProcessingOver,
+    ResourceProcessing, //资源处理阶段
+    ResourceProcessingOver,
+    GameInit,
+    GameStart,
 }

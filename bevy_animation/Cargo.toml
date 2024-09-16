@@ -5,3 +5,9 @@ edition = "2021"
 publish = ["crates-io"]
 
 [dependencies]
+bevy = { workspace = true }  # 引用根目录中 Bevy 的依赖
+bevy_base = { workspace = true }  # 引用根目录中 Bevy 的依赖
+bevy_mask_system = { workspace = true } 
+mask_system_lib = { workspace = true } 
+bevy_entity_state = { workspace = true }
+bevy_config = {workspace = true}

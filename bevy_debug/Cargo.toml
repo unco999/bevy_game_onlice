@@ -11,3 +11,4 @@ bevy_mask_system = { workspace = true }
 mask_system_lib = { workspace = true } 
 bevy_entity_state = { workspace = true }
 bevy_blendy_cameras = {workspace = true}
+bevy_animation = {workspace = true}

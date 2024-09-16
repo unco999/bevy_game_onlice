@@ -1,7 +1,12 @@
 (
     hash_map: {
-        "key1": 1,
-        "key2": 2,
-        "key3": 3
-    }
+        "models/xiake.glb": (
+            name: "models/xiake.glb",
+            state_to_animation_id: {
+                4: 13,
+                8: 20,
+                128:1
+            },
+        ),
+    },
 )

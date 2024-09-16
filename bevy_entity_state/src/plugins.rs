@@ -24,8 +24,7 @@ use crate::structs::const_creature_state;
 impl Plugin for BevyEntityStatePlugin{
     fn build(&self, app: &mut bevy::prelude::App) {
         app
-            .add_systems(Startup, test.in_set(BevyEntityStateSysSet::Init).after(BevyEntityStateSysSet::Run))
-            .add_systems(Update,F::<op!(MainTimePassTick ),TimePassTick,Content::<{const_base::creature},0,0,0,{const_creature_state::run},0,0>>::sign())
+            // .add_systems(Update,F::<op!(MainTimePassTick ),TimePassTick,Content::<{const_base::creature},0,0,0,{const_creature_state::run},0,0>>::sign())
             .add_systems(Update,F::<op!(MainTimePassTick ),TimePassTick,Content::<{const_base::creature},0,0,0,{const_creature_state::spawn},0,0>>::sign())
             .add_systems(Update,F::<op!(SubStateTimePassTick),TimePassTick,Content::<{const_base::creature},0,0,{const_base_state::ENTRY},0,0,0>>::sign())
             .add_systems(Update,F::<op!(SubStateTimePassTick),TimePassTick,Content::<{const_base::creature},0,0,{const_base_state::EXIT},0,0,0>>::sign())
@@ -41,15 +40,22 @@ impl Plugin for BevyEntityStatePlugin{
             //主转台转变使用的函数
             .add_systems(Update, F::<op!(DefualtMainStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::run},{const_creature_state::idle},0,0>>::sign())
             .add_systems(Update, F::<op!(DefualtMainStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::spawn},{const_creature_state::idle},0,0>>::sign())
+            .add_systems(Update, F::<op!(DefualtMainStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::run},{const_creature_state::attack1},0,0>>::sign())
         
             //指定转换函数
             .add_systems(Update, F::<op!(MainAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::idle},{const_creature_state::run},0,0>>::sign())
+            .add_systems(Update, F::<op!(MainAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::run},{const_creature_state::idle},0,0>>::sign())
+            .add_systems(Update, F::<op!(MainAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::run},{const_creature_state::attack1},0,0>>::sign())
 
             //指定子状态受到指令转变
-            .add_systems(Update, F::<op!(DefualtSubAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_base_state::RUN},{const_base_state::EXIT},0,0>>::sign())
+            .add_systems(Update, F::<op!(DefualtSubAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_base_state::RUN},{const_creature_state::idle},0,0>>::sign())
+            .add_systems(Update, F::<op!(DefualtSubAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_base_state::RUN},{const_creature_state::run},0,0>>::sign())
+            .add_systems(Update, F::<op!(DefualtSubAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_base_state::RUN},{const_creature_state::attack1},0,0>>::sign())
 
             //子状态转变主状态
             .add_systems(Update, F::<op!(SubChangeMainState),StateChange,Content::<{const_base::creature},0,0,{const_base_state::END},{const_creature_state::run},0,0>>::sign())
+            .add_systems(Update, F::<op!(SubChangeMainState),StateChange,Content::<{const_base::creature},0,0,{const_base_state::END},{const_creature_state::idle},0,0>>::sign())
+            .add_systems(Update, F::<op!(SubChangeMainState),StateChange,Content::<{const_base::creature},0,0,{const_base_state::END},{const_creature_state::attack1},0,0>>::sign())
 
         ;
     }
@@ -60,46 +66,6 @@ pub enum BevyEntityStateSysSet{
     #[default]
     Init,
     Run,
-}
-
-fn test(
-    mut cmd:Commands
-){
-    let main_ent = 
-            cmd.spawn_empty()
-            .insert(MainState::<{const_creature_state::spawn}>)
-            .insert(TimePass::<{ const_time::state_timer  }>{
-                start_time: 0.0,
-                max_time: 0.25,
-                is_over: false,
-                is_stop: false,
-                elapsed_time: 0.0,
-            })
-            .id();
-    let sub_ent = cmd.spawn_empty()
-            .insert(SubState::<{const_base_state::ENTRY}>)
-            .id();
-    let m2clink = Link::<{ const_link_type::sub_state }>{
-        srouce:main_ent,
-        link:sub_ent
-    };
-    let c2mlink = Link::<{ const_link_type::state }>{
-        srouce:sub_ent,
-        link:main_ent
-    };
-    cmd.entity(main_ent)
-        .insert(m2clink)
-        .insert(Marker::<{const_base::creature}>);
-    cmd.entity(sub_ent)
-        .insert(c2mlink)
-        .insert(TimePass::<{ const_time::state_timer  }>{
-            start_time: 0.0,
-            max_time: 0.25,
-            is_over: false,
-            is_stop: false,
-            elapsed_time: 0.0,
-        })
-        .insert(Marker::<{const_base::creature}>);;
 }
 
 
@@ -284,7 +250,7 @@ impl<Content:MaskSystemContent + 'static> MaskSystem<DefualtSubAppointStateChang
             |mut cmd:Commands,mut query:Query<(Entity,&mut TimePass<{const_time::state_timer}>),(With<Marker<{Content::marker}>>,With<SubState<{Content::tag_1_c}>>,Added<AppointStateTransition<{Content::tag_2_c}>>)>|{
                 for (ent,mut time_pass) in &mut query{
                     cmd.entity(ent).remove::<SubState<{Content::tag_1_c}>>();
-                    cmd.entity(ent).insert(SubState::<{Content::tag_2_c}>);
+                    cmd.entity(ent).insert(SubState::<{const_base_state::EXIT}>);
                     time_pass.reset();
                 }
             },
