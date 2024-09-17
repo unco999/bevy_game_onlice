@@ -53,6 +53,16 @@ impl Plugin for AnimationPlugin {
         .add_systems(
             Update,
             F::<
+                StateToAnimation,
+                MainStateAnimationChange,
+                Content<{ const_base::creature }, 0, 0, { const_creature_state::walk }, 0, 0, 0>,
+            >::sign()
+            .in_set(AnimationSystem::Init)
+            .run_if(in_state(AppState::GameStart)),
+        )
+        .add_systems(
+            Update,
+            F::<
                 MarkerAnimationInit,
                 MainStateAnimationChange,
                 Content<{ const_base::creature }, 0, 0, 0, 0, 0, 0>,
@@ -60,6 +70,7 @@ impl Plugin for AnimationPlugin {
             .in_set(AnimationSystem::Init)
             .run_if(in_state(AppState::GameStart)),
         );
+        
     }
 }
 
@@ -120,10 +131,10 @@ where
          >| {
             for (name,mut link) in &mut trigger_query{
                 let (mut transition,mut anim_player) = all_animation.get_mut(link.link).expect("not find animation data");
-                let data1 = config.animation_table_cache.hash_map.get(&name.0).expect("not find animation with name");
+                let data1 = config.animation_table_cache.as_ref().expect("db_error").hash_map.get(&name.0).expect("not find animation with name");
                 let to_anim_nodeindex  = data1.state_to_animation_id.get(&Content::tag_1_c).expect("not find animation with animation id with state");
                 transition
-                .play(&mut anim_player, (*to_anim_nodeindex as u32).into(), Duration::from_secs_f32(0.25))
+                .play(&mut anim_player, (to_anim_nodeindex.0 as u32).into(), Duration::from_secs_f32(to_anim_nodeindex.1))
                 .repeat();
             }
         }
@@ -182,6 +193,10 @@ impl<Content: MaskSystemContent + 'static> MaskSystem<MarkerAnimationInit, Conte
                             GltfAssetLabel::Animation(18).from_asset("models/xiake.glb"),
                             GltfAssetLabel::Animation(19).from_asset("models/xiake.glb"),
                             GltfAssetLabel::Animation(20).from_asset("models/xiake.glb"),
+                            GltfAssetLabel::Animation(21).from_asset("models/xiake.glb"),
+                            GltfAssetLabel::Animation(22).from_asset("models/xiake.glb"),
+                            GltfAssetLabel::Animation(23).from_asset("models/xiake.glb"),
+                            GltfAssetLabel::Animation(24).from_asset("models/xiake.glb"),
                         ]
                         .into_iter()
                         .map(|path| asset_server.load(path)),

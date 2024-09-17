@@ -17,6 +17,9 @@ bevy_animation = {workspace = true}
 bevy_config = {workspace = true}
 bevy_common_assets = {workspace = true}
 serde = {workspace = true}
+bevy_controller = {workspace = true}
+bevy_rapier3d = {workspace = true}
+
 [workspace.dependencies]
 bevy_blendy_cameras = "0.4.0"
 bevy = "0.14.2"  # 统一管理 Bevy 依赖
@@ -28,4 +31,6 @@ bevy_debug = { path = "bevy_debug"}
 bevy_animation = { path = "bevy_animation"}
 bevy_config = {path = "bevy_config"}
 bevy_common_assets = { version = "0.11", features = ["ron"] }
+bevy_controller = {path="bevy_controller"}
 serde = "1.0.208"
+bevy_rapier3d = { version = "*", features = [ "simd-stable", "debug-render-3d" ] }

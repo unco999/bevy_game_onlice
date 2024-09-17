@@ -1,0 +1,20 @@
+(
+    models: [
+        (
+            name: "xiake",
+            path: "models/xiake.glb",
+        ),
+    ],
+    scenes: [
+        (
+            name: "chiense",
+            path: "scenes/city/chinese_house.glb",
+        ),
+    ],
+    animation: [
+        (
+            name: "animation_db",
+            path: "config/animation.ron",
+        ),
+    ],
+)

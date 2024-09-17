@@ -4,6 +4,7 @@ use bevy::prelude::States;
 pub mod const_base{
     pub const any:usize = 0;
     pub const creature:usize = 2;
+    pub const local_player:usize = 4;
 }
 
 pub mod const_bool{
@@ -91,6 +92,8 @@ pub enum AppState{
     ConfigProcessingOver,
     ResourceProcessing, //资源处理阶段
     ResourceProcessingOver,
+    ResouceAnimtionResourceProcessing,
+    ResouceAnimtionResourceProcessingOver,
     GameInit,
     GameStart,
 }
