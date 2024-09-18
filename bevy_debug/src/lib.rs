@@ -11,7 +11,7 @@ use bevy::{
         light_consts, AmbientLight, CascadeShadowConfigBuilder, DirectionalLight, DirectionalLightBundle, PbrBundle, PointLight, PointLightBundle, SpotLight, SpotLightBundle, StandardMaterial
     },
     prelude::{
-        default, in_state, run_once, Added, AnimationGraph, AnimationNodeIndex, AnimationPlayer, AnimationTransitions, Camera3dBundle, Commands, Component, Entity, EventReader, IntoSystemConfigs, KeyCode, Local, Mesh, Meshable, NextState, OnEnter, Plane3d, Query, Res, ResMut, Resource, Transform, TransformBundle, With
+        default, in_state, run_once, Added, AnimationGraph, AnimationNodeIndex, AnimationPlayer, AnimationTransitions, Camera3dBundle, Commands, Component, Entity, EventReader, IntoSystemConfigs, KeyCode, Local, Mesh, Meshable, NextState, OnEnter, Plane3d, Query, Res, ResMut, Resource, SystemSet, Transform, TransformBundle, With
     },
     scene::SceneBundle,
     time::common_conditions::on_timer,
@@ -31,8 +31,15 @@ pub struct DebugPlugin;
 impl Plugin for DebugPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.add_systems(Update, test_input)
-            .add_systems(OnEnter(AppState::GameStart), (model));
+            .add_systems(OnEnter(AppState::GameStart), (test_init).in_set(DebugSys::Init));
     }
+}
+
+
+#[derive(SystemSet,Debug,PartialEq,Eq,Clone,Hash)]
+pub enum DebugSys{
+    Init,
+    Over
 }
 
 fn test_input(
@@ -99,7 +106,7 @@ fn test_input(
 
 static CLIP_NODE_INDICES: [u32; 2] = [13, 20];
 
-fn model(
+fn test_init(
     mut cmd: Commands,
     asset_server: Res<AssetServer>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
@@ -108,14 +115,14 @@ fn model(
 ) {
     cmd.spawn((
         Camera3dBundle {
-            transform: Transform::from_translation(Vec3::new(0.0, 1.5, 5.0)),
+            transform: Transform::from_translation(Vec3::new(200.0, 200.5, 5.0)),
             ..default()
         },
-        OrbitCameraController::default(),
-        FlyCameraController {
-            is_enabled: false,
-            ..default()
-        },
+        // OrbitCameraController::default(),
+        // FlyCameraController {
+        //     is_enabled: false,
+        //     ..default()
+        // },
     ));
     cmd.spawn((
         DirectionalLightBundle {
@@ -236,6 +243,7 @@ fn model(
     .insert(Name("models/xiake.glb".into()))
     .insert(RigidBody::KinematicPositionBased)
     .insert(Collider::ball(0.5))
+    .insert(        TransformBundle::from(Transform::from_xyz(1.0, 0.0, 1.0)))
     .insert(KinematicCharacterController {
         ..KinematicCharacterController::default()
     })

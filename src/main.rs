@@ -41,7 +41,7 @@ fn main() {
         .add_plugins(DebugPlugin)
         .init_state::<AppState>()
         .add_plugins(Config)
-        .add_plugins(BlendyCamerasPlugin)
+        // .add_plugins(BlendyCamerasPlugin)
         .add_plugins(WorldInspectorPlugin::new())
         .add_plugins(AnimationPlugin)
         .run();

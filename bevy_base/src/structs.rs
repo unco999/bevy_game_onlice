@@ -18,17 +18,24 @@ pub mod const_link_type{
     pub const state:usize = 2;
     pub const sub_state:usize = 4;
     pub const animation:usize = 8;
+    pub const camera_target:usize = 16;
 }
 
 pub mod const_time{
     pub const timer:usize = 2;
     pub const state_timer:usize = 4;
+    pub const camera_timer:usize = 8;
+}
+
+pub mod const_transfrom_note{
+    pub const camera_target:usize = 2;
 }
 
 pub mod comp{
-    use bevy::{prelude::{Component, Entity}, reflect::TypePath};
+    use bevy::{prelude::{Component, Entity, Transform}, reflect::TypePath};
 
-
+    #[derive(Component)]
+    pub struct TransformNote<const transfrom_note:usize>(pub Transform);
     /**
      * marker实际上一个实体可以标记多种marker  
      * 这个marker是几个基本分类
