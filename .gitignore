@@ -24,3 +24,5 @@ Cargo.lock
 
 /target
 assets/scenes/city/chinse_city.glb
+assets/scenes/city/chinese_house_collision.glb
+assets/scenes/city/chinese_city.glb

@@ -50,6 +50,8 @@ impl Plugin for BevyEntityStatePlugin{
             .add_systems(Update, F::<op!(DefualtMainStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::run},{const_creature_state::attack1},0,0>>::sign())
             .add_systems(Update, F::<op!(DefualtMainStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::walk},{const_creature_state::idle},0,0>>::sign())
             .add_systems(Update, F::<op!(DefualtMainStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::walk},{const_creature_state::run},0,0>>::sign())
+            .add_systems(Update, F::<op!(DefualtMainStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::walk},{const_creature_state::climb_up},0,0>>::sign())
+            .add_systems(Update, F::<op!(DefualtMainStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::run},{const_creature_state::climb_up},0,0>>::sign())
         
             //指定转换函数
             .add_systems(Update, F::<op!(MainAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::idle},{const_creature_state::walk},0,0>>::sign())
@@ -57,12 +59,15 @@ impl Plugin for BevyEntityStatePlugin{
             .add_systems(Update, F::<op!(MainAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::run},{const_creature_state::walk},0,0>>::sign())
             .add_systems(Update, F::<op!(MainAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::walk},{const_creature_state::idle},0,0>>::sign())
             .add_systems(Update, F::<op!(MainAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::walk},{const_creature_state::run},0,0>>::sign())
-
+            .add_systems(Update, F::<op!(MainAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::walk},{const_creature_state::climb_up},0,0>>::sign())
+            .add_systems(Update, F::<op!(MainAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_creature_state::run},{const_creature_state::climb_up},0,0>>::sign())
             //指定子状态受到指令转变
+
             .add_systems(Update, F::<op!(SubAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_base_state::RUN},{const_creature_state::idle},0,0>>::sign())
             .add_systems(Update, F::<op!(SubAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_base_state::RUN},{const_creature_state::run},0,0>>::sign())
             .add_systems(Update, F::<op!(SubAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_base_state::RUN},{const_creature_state::attack1},0,0>>::sign())
             .add_systems(Update, F::<op!(SubAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_base_state::RUN},{const_creature_state::walk},0,0>>::sign())
+            .add_systems(Update, F::<op!(SubAppointStateChange),StateChange,Content::<{const_base::creature},0,0,{const_base_state::RUN},{const_creature_state::climb_up},0,0>>::sign())
 
             //子状态转变主状态
             // .add_systems(Update, F::<op!(SubChangeMainState),StateChange,Content::<{const_base::creature},0,0,{const_base_state::END},{const_creature_state::run},0,0>>::sign())
@@ -70,6 +75,7 @@ impl Plugin for BevyEntityStatePlugin{
             .add_systems(Update, F::<op!(SubChangeMainState),StateChange,Content::<{const_base::creature},0,0,{const_base_state::END},{const_creature_state::idle},0,0>>::sign())
             .add_systems(Update, F::<op!(SubChangeMainState),StateChange,Content::<{const_base::creature},0,0,{const_base_state::END},{const_creature_state::attack1},0,0>>::sign())
             .add_systems(Update, F::<op!(SubChangeMainState),StateChange,Content::<{const_base::creature},0,0,{const_base_state::END},{const_creature_state::run},0,0>>::sign())
+            .add_systems(Update, F::<op!(SubChangeMainState),StateChange,Content::<{const_base::creature},0,0,{const_base_state::END},{const_creature_state::climb_up},0,0>>::sign())
             
 
         ;
@@ -171,7 +177,6 @@ impl<Content:MaskSystemContent + 'static> MaskSystem<DefualtTimePassTick,Content
             |mut cmd:Commands,mut time:Res<Time>,mut query:Query<(Entity,&mut TimePass<{const_time::state_timer}>),(With<Marker<{Content::marker}>>,With<MainState<{Content::tag_2_c}>>)>|{
                 for (ent,mut time_pass) in &mut query{
                     time_pass.tick(time.delta_seconds());
-                    println!("当前的记时 {}->{} -> {}",Content::tag_2_c,time_pass.elapsed_time,time_pass.is_over);
                 }
             }
         )

@@ -1,26 +1,18 @@
 use std::{f32::consts::PI, time::Duration};
 
 use bevy::{
-    app::{Plugin, PostStartup, Startup, Update},
-    asset::{AssetEvent, AssetServer, Assets, Handle},
-    color::{palettes::css::{BLUE, LIME, ORANGE_RED, RED, WHITE}, Color},
-    gltf::{Gltf, GltfAssetLabel},
-    input::ButtonInput,
-    math::{Quat, Vec3, Vec4},
-    pbr::{
+    app::{FixedUpdate, Plugin, PostStartup, Startup, Update}, asset::{AssetEvent, AssetServer, Assets, Handle}, color::{palettes::css::{BLUE, LIME, ORANGE_RED, RED, WHITE}, Color}, ecs::query, gltf::{Gltf, GltfAssetLabel, GltfSceneExtras,*}, input::ButtonInput, math::{Quat, Vec3, Vec4}, pbr::{
         light_consts, AmbientLight, CascadeShadowConfigBuilder, DirectionalLight, DirectionalLightBundle, PbrBundle, PointLight, PointLightBundle, SpotLight, SpotLightBundle, StandardMaterial
-    },
-    prelude::{
-        default, in_state, run_once, Added, AnimationGraph, AnimationNodeIndex, AnimationPlayer, AnimationTransitions, Camera3dBundle, Commands, Component, Entity, EventReader, IntoSystemConfigs, KeyCode, Local, Mesh, Meshable, NextState, OnEnter, Plane3d, Query, Res, ResMut, Resource, SystemSet, Transform, TransformBundle, With
-    },
-    scene::SceneBundle,
-    time::common_conditions::on_timer,
+    }, prelude::{
+        default, in_state, run_once, Added, AnimationGraph, AnimationNodeIndex, AnimationPlayer, AnimationTransitions, Camera3dBundle, Commands, Component, Entity, EventReader, IntoSystemConfigs, KeyCode, Local, Mesh, Meshable, NextState, OnEnter, Plane3d, Query, Res, ResMut, Resource, SystemSet, Transform, TransformBundle, Visibility, VisibilityBundle, With, Without
+    }, render::view::GpuCulling, scene::SceneBundle, time::common_conditions::on_timer
 };
 use bevy_animation::plugin::AnimationSystem;
 use bevy_base::structs::{
-    comp::{Link, Marker, Name, TimePass}, const_base, const_link_type, const_time, AppState
+    comp::{Link, Marker, Name, SpawnCollision, TimePass}, const_base, const_link_type, const_time, AppState
 };
 use bevy_blendy_cameras::{FlyCameraController, OrbitCameraController};
+use bevy_collision::structs::{comp::ColliderType, const_collider_type};
 use bevy_entity_state::structs::{comp::*, const_base_state, const_creature_state};
 
 use bevy_rapier3d::prelude::*;
@@ -31,7 +23,10 @@ pub struct DebugPlugin;
 impl Plugin for DebugPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.add_systems(Update, test_input)
-            .add_systems(OnEnter(AppState::GameStart), (test_init).in_set(DebugSys::Init));
+            .add_systems(OnEnter(AppState::GameStart), (test_init).in_set(DebugSys::Init))
+            .add_systems(Update, display_events);
+            // .add_systems(Update,collider_check);
+            
     }
 }
 
@@ -40,6 +35,22 @@ impl Plugin for DebugPlugin {
 pub enum DebugSys{
     Init,
     Over
+}
+
+fn collider_check(
+    mut cmd:Commands,
+    mut query:Query<(Entity,&Handle<Mesh>),(Without<Collider>)>,
+    meshes: Res<Assets<Mesh>>,
+){
+    for (ent,mesh) in &mut query{
+        cmd.entity(ent).insert(
+            Collider::from_bevy_mesh(
+                meshes.get(mesh).unwrap(),
+                &ComputedColliderShape::TriMesh,
+            )
+            .unwrap(),
+        );
+    }
 }
 
 fn test_input(
@@ -63,6 +74,7 @@ fn test_input(
         });
 
         *input_lock = false;
+        return;
     }
 
     if (*input_lock){
@@ -105,6 +117,20 @@ fn test_input(
 }
 
 static CLIP_NODE_INDICES: [u32; 2] = [13, 20];
+
+
+fn display_events(
+    mut collision_events: EventReader<CollisionEvent>,
+    mut contact_force_events: EventReader<ContactForceEvent>,
+) {
+    for collision_event in collision_events.read() {
+        println!("Received collision event: {:?}", collision_event);
+    }
+
+    for contact_force_event in contact_force_events.read() {
+        println!("Received contact force event: {:?}", contact_force_event);
+    }
+}
 
 fn test_init(
     mut cmd: Commands,
@@ -220,12 +246,26 @@ fn test_init(
     //     ..default()
     // });
 
-    let scenes = cmd.spawn(SceneBundle {
+
+    let scenes = cmd.spawn((SceneBundle {
+        scene: asset_server.load(GltfAssetLabel::Scene(0).from_asset("scenes/city/chinese_house_collision.glb")),
+        ..default()
+        })
+    ).insert(
+        (
+        AsyncSceneCollider::default(),
+        RigidBody::Fixed,
+        ActiveEvents::COLLISION_EVENTS | ActiveEvents::CONTACT_FORCE_EVENTS,
+        ColliderType::<{const_collider_type::wall}>,
+        Visibility::Hidden
+        )
+    );
+
+    let scenes = cmd.spawn((SceneBundle {
         scene: asset_server.load(GltfAssetLabel::Scene(0).from_asset("scenes/city/chinese_house.glb")),
         ..default()
-        }
+        })
     );
-    
 
     let ground_size = 100.0;
     let ground_height = 0.1;
@@ -233,6 +273,7 @@ fn test_init(
     cmd.spawn((
         TransformBundle::from(Transform::from_xyz(0.0, -ground_height, 0.0)),
         Collider::cuboid(ground_size, ground_height, ground_size),
+        RigidBody::Fixed
     ));
 
     let main_ent = cmd.spawn(SceneBundle {
@@ -242,11 +283,14 @@ fn test_init(
     .insert(Marker::<{const_base::local_player}>)
     .insert(Name("models/xiake.glb".into()))
     .insert(RigidBody::KinematicPositionBased)
-    .insert(Collider::ball(0.5))
+    .insert(ContactForceEventThreshold(1.0))
+    .insert(Collider::cuboid(0.2,1.0,0.1))
     .insert(        TransformBundle::from(Transform::from_xyz(1.0, 0.0, 1.0)))
     .insert(KinematicCharacterController {
         ..KinematicCharacterController::default()
     })
+    .insert(ActiveEvents::COLLISION_EVENTS | ActiveEvents::CONTACT_FORCE_EVENTS )
+    .insert(ActiveCollisionTypes::default() | ActiveCollisionTypes::KINEMATIC_STATIC)
     .insert(MainState::<{ const_creature_state::spawn }>)
     .insert(TimePass::<{ const_time::state_timer }> {
             start_time: 0.0,
@@ -325,5 +369,43 @@ fn setup_scene_once_loaded(
         // }
         println!("开始播放");
         state.set(AppState::GameStart);
+    }
+}
+
+fn check_for_gltf_extras(
+    gltf_extras_per_entity: Query<(
+        Entity,
+        Option<&Name>,
+        Option<&GltfSceneExtras>,
+        Option<&GltfExtras>,
+        Option<&GltfMeshExtras>,
+        Option<&GltfMaterialExtras>,
+    )>,
+) {
+    let mut gltf_extra_infos_lines: Vec<String> = vec![];
+
+    for (id, name, scene_extras, extras, mesh_extras, material_extras) in
+        gltf_extras_per_entity.iter()
+    {
+        if scene_extras.is_some()
+            || extras.is_some()
+            || mesh_extras.is_some()
+            || material_extras.is_some()
+        {
+            let mut formatted_extras = format!(
+                "Extras per entity {}
+    - scene extras:     {:?}
+    - primitive extras: {:?}
+    - mesh extras:      {:?}
+    - material extras:  {:?}
+                ",
+                id,
+                scene_extras,
+                extras,
+                mesh_extras,
+                material_extras
+            );
+            println!("{}",formatted_extras.clone());
+        }
     }
 }

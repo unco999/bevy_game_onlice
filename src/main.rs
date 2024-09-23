@@ -18,6 +18,7 @@ use bevy::{
 use bevy_animation::plugin::AnimationPlugin;
 use bevy_base::structs::AppState;
 use bevy_blendy_cameras::BlendyCamerasPlugin;
+use bevy_collision::plugin::ColliderPlugin;
 use bevy_config::{plugin::Config, structs::{AnimationTableCache, AnimationTableRecord}};
 use bevy_controller::plugin::ControllerPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
@@ -37,6 +38,7 @@ fn main() {
             RapierPhysicsPlugin::<NoUserData>::default(),
             RapierDebugRenderPlugin::default(),
         ))
+        .add_plugins(ColliderPlugin)
         .add_plugins(ControllerPlugin)
         .add_plugins(DebugPlugin)
         .init_state::<AppState>()

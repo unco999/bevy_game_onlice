@@ -36,6 +36,9 @@ pub mod comp{
 
     #[derive(Component)]
     pub struct TransformNote<const transfrom_note:usize>(pub Transform);
+
+    #[derive(Component)]
+    pub struct TransformOffset<const transfrom_note:usize>(pub Transform);
     /**
      * marker实际上一个实体可以标记多种marker  
      * 这个marker是几个基本分类
@@ -52,6 +55,8 @@ pub mod comp{
         pub link:Entity,
     }
 
+    #[derive(Component)]
+    pub struct SpawnCollision;
 
     #[derive(Component,TypePath)]
     pub struct TimePass<const const_time:usize>{

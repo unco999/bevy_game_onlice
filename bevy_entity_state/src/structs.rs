@@ -19,13 +19,21 @@ pub mod const_creature_state{
     pub const attack2:usize = 256;
     pub const spell_1:usize = 512;
     pub const spell_2:usize = 1024;
+    pub const climb_up:usize = 2048;
 
     pub const MASK: usize = 0xFFFF;
 
     pub const run_repel:usize = !run & MASK;
 }
 
+pub mod special_aniamtion{
+    use bevy::prelude::{Component, Entity};
 
+    #[derive(Component)]
+    pub struct ClimbUpWapll{
+        pub target_wall:Entity
+    }
+}
 
 
 pub mod comp{

@@ -13,3 +13,4 @@ bevy_entity_state = { workspace = true }
 bevy_blendy_cameras = {workspace = true}
 bevy_animation = {workspace = true}
 bevy_rapier3d = {workspace = true}
+bevy_collision = {workspace = true}

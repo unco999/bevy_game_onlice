@@ -45,6 +45,16 @@ impl Plugin for AnimationPlugin {
             F::<
                 StateToAnimation,
                 MainStateAnimationChange,
+                Content<{ const_base::creature }, 0, 0, { const_creature_state::climb_up }, 0, 0, 0>,
+            >::sign()
+            .in_set(AnimationSystem::Init)
+            .run_if(in_state(AppState::GameStart)),
+        )
+        .add_systems(
+            Update,
+            F::<
+                StateToAnimation,
+                MainStateAnimationChange,
                 Content<{ const_base::creature }, 0, 0, { const_creature_state::attack1 }, 0, 0, 0>,
             >::sign()
             .in_set(AnimationSystem::Init)

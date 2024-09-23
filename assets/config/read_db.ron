@@ -4,11 +4,19 @@
             name: "xiake",
             path: "models/xiake.glb",
         ),
+        (
+            name: "test",
+            path: "test/light.glb",
+        ),
     ],
     scenes: [
         (
             name: "chiense",
             path: "scenes/city/chinese_house.glb",
+        ),
+        (
+            name: "chiense_house_collision",
+            path: "scenes/city/chinese_house_collision.glb",
         ),
     ],
     animation: [

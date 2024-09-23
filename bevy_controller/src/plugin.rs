@@ -1,17 +1,17 @@
-use std::time::Duration;
+use std::{process::Command, time::Duration};
 
 use bevy::{
-    app::*, color::Color, input::ButtonInput, math::{vec3, Quat, Vec3, Vec3Swizzles}, prelude::{
-        in_state, Added, Camera, Commands, Entity, Gizmos, IntoSystemConfigs, KeyCode, OnEnter, ParamSet, Query, Res, Transform, With
-    }, time::{common_conditions::on_timer, Time}
+    a11y::accesskit::Vec2, app::*, color::Color, input::{mouse::MouseMotion, ButtonInput}, math::{vec3, Quat, Vec2Swizzles, Vec3, Vec3Swizzles}, prelude::{
+        in_state, Added, Camera, Changed, Commands, Entity, EventReader, Gizmos, IntoSystemConfigs, KeyCode, Local, MouseButton, OnEnter, ParamSet, Query, Res, SystemSet, Transform, With, Without
+    }, time::{common_conditions::on_timer, Time}, window::CursorMoved
 };
 use bevy_base::structs::{
-    comp::{Link, Marker, TimePass, TransformNote}, const_base, const_link_type, const_time, const_transfrom_note, AppState
+    comp::{Link, Marker, TimePass, TransformNote, TransformOffset}, const_base, const_link_type, const_time, const_transfrom_note, AppState
 };
 use bevy_debug::DebugSys;
-use bevy_entity_state::structs::{comp::MainState, const_creature_state};
+use bevy_entity_state::structs::{comp::MainState, const_creature_state, special_aniamtion::ClimbUpWapll};
 use bevy_mask_system::MaskSys;
-use bevy_rapier3d::prelude::*;
+use bevy_rapier3d::{na::clamp, prelude::*};
 use mask_system_lib::*;
 
 use crate::structs::{const_camera_view, CameraTarget, CameraView};
@@ -19,19 +19,69 @@ pub struct ControllerPlugin;
 
 impl Plugin for ControllerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, key_code_input_controller)
+        app.add_systems(FixedUpdate, (key_code_input_controller,key_code_input_climb_up_wapll))
             .add_systems(
-                Update,
+                FixedUpdate,
                 F::<op!(FollowCameraTarget), MainCamera, Content<0, 0, 0, 0, 0, 0, 0>>::sign()
-                    .run_if(in_state(AppState::GameStart)),
+                    .in_set(CemeraSystemSet::FolLow1).run_if(in_state(AppState::GameStart)),
             )
-            .add_systems(Update,F::<op!(CameraTargetTick),MainCamera,Content::<0,0,0,0,0,0,0>>::sign())
+            .add_systems(
+                FixedUpdate,
+                F::<op!(CameraOffset), MainCamera, Content<0, 0, 0, 0, 0, 0, 0>>::sign()
+                .in_set(CemeraSystemSet::Follow2).after(CemeraSystemSet::FolLow1).run_if(in_state(AppState::GameStart)),
+            )
+            .add_systems(FixedUpdate,F::<op!(CameraTargetTick),MainCamera,Content::<0,0,0,0,0,0,0>>::sign())
             .add_systems(
                 Update,
-                F::<op!(localPlayerUpdate), MainCamera, Content<0, 0, 0, 0, 0, 0, 0>>::sign().after(DebugSys::Init).run_if(on_timer(Duration::from_secs_f32(1.5))),
-            );
+                F::<localPlayerUpdate, MainCamera, Content<0, 0, 0, 0, 0, 0, 0>>::sign().after(DebugSys::Init).run_if(on_timer(Duration::from_secs_f32(1.6))),
+            )
+            ;
     }
 }
+
+
+#[derive(SystemSet,Hash,Debug,PartialEq,Eq,Clone)]
+enum CemeraSystemSet{
+    FolLow1,
+    Follow2,
+}
+
+pub fn key_code_input_climb_up_wapll(
+    time: Res<Time>,
+    input: Res<ButtonInput<KeyCode>>,
+    mut controllers: Query<
+        (
+            &mut KinematicCharacterController,
+            &mut Transform,
+            &TimePass<{ const_time::state_timer }>,
+        ),
+        (With<Marker<{ const_base::local_player }>>,With<ClimbUpWapll>),
+    >,
+) {
+    if (input.pressed(KeyCode::KeyW)) {
+        if(controllers.is_empty()) {return}
+        let (mut controller, mut transform, time_pass) = controllers.single_mut();
+        let forward = transform.up();
+        let mut base_speed = 0.25;
+        controller.translation = Some(
+            forward
+                // * time.delta_seconds()
+                * std::f32::consts::PI
+                * time_pass.elapsed_time
+                * base_speed,
+        );
+        println!("采用向上的力量")
+    }
+    if (input.pressed(KeyCode::KeyS)) {
+    }
+    if (input.pressed(KeyCode::KeyA)) {
+
+    }
+    if (input.pressed(KeyCode::KeyD)) {
+
+    }
+}
+
 
 pub fn key_code_input_controller(
     time: Res<Time>,
@@ -44,9 +94,10 @@ pub fn key_code_input_controller(
             Option<&MainState<{ const_creature_state::walk }>>,
             &TimePass<{ const_time::state_timer }>,
         ),
-        (With<Marker<{ const_base::local_player }>>),
+        (With<Marker<{ const_base::local_player }>>,Without<ClimbUpWapll>),
     >,
 ) {
+    if(controllers.is_empty()) {return}
     if (input.pressed(KeyCode::KeyW)) {
         let (mut controller, mut transform, is_run, is_walk, time_pass) = controllers.single_mut();
         let forward = transform.forward();
@@ -93,6 +144,7 @@ struct MainCamera;
 type FollowCameraTarget = Tag_1_2;
 type CameraTargetTick = Tag_2_4;
 type localPlayerUpdate = Tag_3_8;
+type CameraOffset = Tag_4_16;
 
 
 impl<Content: MaskSystemContent + 'static> MaskSystem<FollowCameraTarget, Content> for MainCamera {
@@ -100,6 +152,7 @@ impl<Content: MaskSystemContent + 'static> MaskSystem<FollowCameraTarget, Conten
 
     type Output = (
         fn(
+            Commands,
             Gizmos,
             Res<Time>,
             ParamSet<(
@@ -112,10 +165,12 @@ impl<Content: MaskSystemContent + 'static> MaskSystem<FollowCameraTarget, Conten
                 >,
                 Query<
                     (
+                        Entity,
                         &mut Transform,
                         &TimePass<{ const_time::camera_timer }>,
                         &Link<{ const_link_type::camera_target }>,
-                        &TransformNote::<{const_transfrom_note::camera_target}>,
+                        &mut TransformNote::<{const_transfrom_note::camera_target}>,
+                        &TransformOffset::<{const_transfrom_note::camera_target}>
                     ),
                     (
                         With<Camera>,
@@ -131,6 +186,7 @@ impl<Content: MaskSystemContent + 'static> MaskSystem<FollowCameraTarget, Conten
     fn export() -> Self::Output {
         (
             |
+                mut cmd:Commands,
                 mut gz:Gizmos,
                 mut time:Res<Time>,
                 mut query: ParamSet<(
@@ -143,10 +199,12 @@ impl<Content: MaskSystemContent + 'static> MaskSystem<FollowCameraTarget, Conten
                 >,
                 Query<
                     (
+                        Entity,
                         &mut Transform,
                         &TimePass<{ const_time::camera_timer }>,
                         &Link<{ const_link_type::camera_target }>,
-                        &TransformNote::<{const_transfrom_note::camera_target}>,
+                        &mut TransformNote::<{const_transfrom_note::camera_target}>,
+                        &TransformOffset::<{const_transfrom_note::camera_target}>
                     ),
                     (
                         With<Camera>,
@@ -160,7 +218,7 @@ impl<Content: MaskSystemContent + 'static> MaskSystem<FollowCameraTarget, Conten
                 let binding = query.p1(); // 可变借用相机的 Transform
                 // let (mut main_camera_transform, time_pass, link) = binding.single_mut();
                 if(binding.is_empty()) {return};
-                let target_ent = binding.single().2.link.clone();
+                let target_ent = binding.single().3.link.clone();
 
                 drop(binding);
                 // 获取目标实体的 Transform（仅读取）
@@ -172,26 +230,26 @@ impl<Content: MaskSystemContent + 'static> MaskSystem<FollowCameraTarget, Conten
                 };
                 
                 let mut binding = query.p1();
-                let (mut main_camera_transform, time_pass, link,transfrom_note) = binding.single_mut();
+                let (ent,mut main_camera_transform, time_pass, link,mut transfrom_note,transform_offset) = binding.single_mut();
 
-                let curr_lerp = time_pass.elapsed_time / time_pass.max_time;
+                let curr_lerp = berlin_curve(time_pass.elapsed_time / time_pass.max_time);
 
-                let offset_distance = 5.0; // 你可以调整这个值
+                let offset_distance = 10.0; // 你可以调整这个值
 
                 // 获取目标物体的朝向
-                let target_forward = target_transform.rotation * Vec3::Z; // 假设Z轴是目标的朝向
+                let target_forward = target_transform.rotation  * Vec3::Z ; // 假设Z轴是目标的朝向
                 
                 // 计算相机的偏移量，确保相机在目标身后
                 let offset = -target_forward.normalize() * offset_distance;
 
-                let offset_Y = Vec3::Y * 2.4;
+                let offset_Y = Vec3::Y * 3.4;
+
+                
                 
                 // 计算新的相机位置
-                let new_camera_position = target_transform.translation + offset + offset_Y ;
-                
-                // 更新相机的位置
-                
-                // 让相机朝向目标物体
+                let mut new_camera_position = target_transform.translation + offset + offset_Y ;
+  
+            
 
                   let curr_position = lerp_vec3(
                       transfrom_note.0.translation.xyz(),
@@ -201,14 +259,21 @@ impl<Content: MaskSystemContent + 'static> MaskSystem<FollowCameraTarget, Conten
 
                   gz.sphere(target_transform.translation, Quat::IDENTITY,2.0, Color::WHITE);
 
-                // 更新相机的位置和朝向
                 main_camera_transform.translation = curr_position;
-                let new_rotation = main_camera_transform.looking_at(target_transform.translation, Vec3::Y);
+                main_camera_transform.translate_around(target_transform.translation + offset_Y, transform_offset.0.rotation);
+                let new_rotation = main_camera_transform.looking_at(target_transform.translation + offset_Y, Vec3::Y);
                 main_camera_transform.rotation = new_rotation.rotation;
+
+                
             },
         )
     }
 }
+
+fn berlin_curve(t: f32) -> f32 {
+    6.0 * t.powi(5) - 15.0 * t.powi(4) + 10.0 * t.powi(3)
+}
+
 
 impl<Content: MaskSystemContent + 'static> MaskSystem<CameraTargetTick, Content> for MainCamera {
     const _marker: usize = 4;
@@ -298,10 +363,60 @@ impl<Content: MaskSystemContent + 'static> MaskSystem<localPlayerUpdate, Content
                           srouce:camera_ent,
                           link:local_player_ent
                      });
+                     cmd.entity(camera_ent).insert(TransformOffset::<{const_transfrom_note::camera_target}>(Transform::from_xyz(0.0, 0.0, 0.0)));
                  }
-
             },
         )
+    }
+}
+
+impl<Content: MaskSystemContent + 'static> MaskSystem<CameraOffset, Content> for MainCamera {
+    const _marker: usize = 16;
+
+    type Output = (
+        fn(
+            Commands,
+            Res<Time>,
+            Res<ButtonInput<MouseButton>>,
+            EventReader<CursorMoved>,
+            Query<(Entity,&Link<{const_link_type::camera_target}>,&mut TransformOffset<{const_transfrom_note::camera_target}>), (With<Camera>)>,
+        )
+    );
+
+    fn export() -> Self::Output {
+        (
+            |
+                mut cmd:Commands,
+                mut time:Res<Time>,
+                mouse_input:Res<ButtonInput<MouseButton>>,
+                mut events:EventReader<CursorMoved>,
+                mut query:Query<(Entity,&Link<{const_link_type::camera_target}>,&mut TransformOffset<{const_transfrom_note::camera_target}>), (With<Camera>)>,
+            |{
+                if(query.is_empty()){return}
+                let (camera_ent,link,mut transfrom_offset) = query.single_mut();
+                let event = events.read();
+                for cursor_moved in event{
+                if(mouse_input.pressed(MouseButton::Right)){
+                    cursor_moved.delta.map(|m|{
+                        println!("{}",m);
+                        let new_m = m.normalize();
+                        transfrom_offset.0.rotate_y(-new_m.x * time.delta_seconds() * 2.0);
+                        transfrom_offset.0.rotate_x(new_m.y * time.delta_seconds()* 2.0);
+                   });
+                 }
+              }
+            }
+        )
+    }
+}
+
+fn step_normalize(value: f32, positive_output: f32, negative_output: f32) -> f32 {
+    if value > 0.0 {
+        positive_output // 返回第一个参数
+    } else if value < 0.0 {
+        negative_output // 返回第二个参数
+    } else {
+        0.0 // 零的情况下返回 0
     }
 }
 
